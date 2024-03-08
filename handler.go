@@ -1,6 +1,7 @@
 package urlshort
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"gopkg.in/yaml.v3"
@@ -75,6 +76,49 @@ func buildMap(entries []mappingEntry) map[string]string {
 // a mapping of paths to urls.
 func YAMLHandler(yml []byte, fallback http.Handler) (http.HandlerFunc, error) {
 	entries, err := parseYAMLMapping(yml)
+	if err != nil {
+		return nil, err
+	}
+
+	pathMap := buildMap(entries)
+	return MapHandler(pathMap, fallback), nil
+}
+
+// parseJSONMapping parses raw JSON mapping to a mappingEntry slice.
+func parseJSONMapping(jsn []byte) ([]mappingEntry, error) {
+	var entries []mappingEntry
+	err := json.Unmarshal(jsn, &entries)
+	if err != nil {
+		return nil, err
+	}
+
+	return entries, nil
+}
+
+// JSONHandler will parse the provided JSON and then return
+// an http.HandlerFunc (which also implements http.Handler)
+// that will attempt to map any paths to their corresponding
+// URL. If the path is not provided in the JSON, then the
+// fallback http.Handler will be called instead.
+//
+// JSON is expected to be in the format:
+//
+// [
+//
+//	{
+//	  "path": "/some-path",
+//	  "url": "https://www.some-url.com/demo"
+//	}
+//
+// ]
+//
+// The only errors that can be returned all related to having
+// invalid JSON data.
+//
+// See MapHandler to create a similar http.HandlerFunc via
+// a mapping of paths to urls.
+func JSONHandler(json []byte, fallback http.Handler) (http.HandlerFunc, error) {
+	entries, err := parseJSONMapping(json)
 	if err != nil {
 		return nil, err
 	}
